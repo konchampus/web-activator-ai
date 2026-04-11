@@ -37,7 +37,7 @@ form.addEventListener("submit", async (event) => {
   setMessage("Sending activation request...", "info");
 
   try {
-    if (keyInfo?.key_type === "team") {
+    if (normalizeValue(keyInfo?.key_type) === "team") {
       const response = await fetch("/api/activate-team", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -91,7 +91,7 @@ async function init() {
     keyInfo = data;
   }
 
-  if (keyInfo.status !== "available") {
+  if (normalizeValue(keyInfo?.status) !== "available") {
     setMessage(
       `Code status is "${keyInfo.status}". Use a code with "available" status.`,
       "error"
@@ -104,13 +104,13 @@ async function init() {
 }
 
 function applyKeyMeta() {
-  const service = keyInfo?.service || "unknown";
-  const keyType = keyInfo?.key_type || "personal";
+  const service = normalizeValue(keyInfo?.service) || "unknown";
+  const keyType = normalizeValue(keyInfo?.key_type) || "personal";
   const plan = keyInfo?.plan || "subscription";
   const term = keyInfo?.term || "";
 
-  serviceBadge.textContent = `Step 2 of 2 • ${service.toUpperCase()} • ${keyType}`;
-  hintEl.textContent = `Code: ${code} • Plan: ${plan}${term ? ` (${term})` : ""}`;
+  serviceBadge.textContent = `Step 2 of 2 - ${service.toUpperCase()} - ${keyType}`;
+  hintEl.textContent = `Code: ${code} - Plan: ${plan}${term ? ` (${term})` : ""}`;
 
   if (keyType === "team") {
     valueLabel.textContent = "Email";
@@ -152,16 +152,17 @@ function startPolling() {
     try {
       const response = await fetch(`/api/activation-status/${encodeURIComponent(code)}`);
       const data = await response.json();
+      const activationStatus = normalizeValue(data?.status);
 
       if (response.ok) {
-        if (data.status === "subscription_sent") {
+        if (activationStatus === "subscription_sent") {
           setMessage("Subscription activated successfully.", "success");
           clearPolling();
           sessionStorage.removeItem("activation:keyinfo");
           return;
         }
 
-        if (data.status === "error") {
+        if (activationStatus === "error") {
           setMessage(
             mapError(readApiMessage(data, "Activation failed with an unknown error.")),
             "error"
@@ -171,7 +172,7 @@ function startPolling() {
         }
 
         setMessage(
-          `Activation in progress: ${humanizeStatus(data.status)} (${attempts}/${MAX_ATTEMPTS})`,
+          `Activation in progress: ${humanizeStatus(activationStatus)} (${attempts}/${MAX_ATTEMPTS})`,
           "info"
         );
       } else {
@@ -216,7 +217,7 @@ function setMessage(text, type) {
 
 function mapError(rawMessage) {
   const message = String(rawMessage || "").trim();
-  const normalized = message.toLowerCase();
+  const normalized = normalizeValue(message);
 
   const dict = {
     "session is required": "Session/token is required.",
@@ -240,24 +241,23 @@ function mapError(rawMessage) {
 
 function readApiMessage(payload, fallback) {
   if (!payload) return fallback;
-
   if (typeof payload === "string") return payload;
   if (typeof payload.message === "string") return payload.message;
   if (typeof payload.error === "string") return payload.error;
-  if (typeof payload.status === "string" && payload.status === "error") {
-    if (typeof payload.message === "string") return payload.message;
+  if (normalizeValue(payload.status) === "error" && typeof payload.message === "string") {
+    return payload.message;
   }
-
   return fallback;
 }
 
 function humanizeStatus(status) {
+  const normalized = normalizeValue(status);
   const dict = {
     started: "started",
     account_found: "account found",
     subscription_sent: "subscription sent"
   };
-  return dict[status] || status || "pending";
+  return dict[normalized] || normalized || "pending";
 }
 
 function safeParseJson(text) {
@@ -266,4 +266,10 @@ function safeParseJson(text) {
   } catch {
     return null;
   }
+}
+
+function normalizeValue(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }

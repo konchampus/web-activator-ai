@@ -23,7 +23,8 @@ form.addEventListener("submit", async (event) => {
       return;
     }
 
-    if (data.status !== "available") {
+    const keyStatus = normalizeValue(data.status);
+    if (keyStatus !== "available") {
       setMessage(
         `Code status is "${data.status}". Only "available" codes can be activated.`,
         "error"
@@ -60,4 +61,10 @@ function readApiMessage(payload, fallback) {
   if (typeof payload.message === "string") return payload.message;
   if (typeof payload.error === "string") return payload.error;
   return fallback;
+}
+
+function normalizeValue(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }
