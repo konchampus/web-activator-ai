@@ -67,11 +67,30 @@ app.get("/api/activation-status/:code", async (req, res) => {
     return;
   }
 
-  const result = await proxyRequest(
-    `/chatgpt/keys/activation-status/${encodeURIComponent(code)}`,
-    { method: "GET" }
-  );
-  res.status(result.status).json(result.body);
+  const keyResult = await proxyRequest(`/chatgpt/keys/${encodeURIComponent(code)}`, {
+    method: "GET"
+  });
+
+  if (keyResult.status !== 200) {
+    res.status(keyResult.status).json(keyResult.body);
+    return;
+  }
+
+  const keyStatus = normalizeValue(keyResult.body?.status);
+  const mappedStatus =
+    keyStatus === "activated"
+      ? "subscription_sent"
+      : keyStatus === "reserved"
+        ? "account_found"
+        : "started";
+
+  res.status(200).json({
+    code,
+    status: mappedStatus,
+    key: keyResult.body,
+    activation_type: "unknown",
+    source: "key_status_fallback"
+  });
 });
 
 app.use((_req, res) => {
@@ -88,12 +107,14 @@ async function proxyRequest(endpoint, options) {
     const text = await response.text();
     const parsed = safeParseJson(text);
 
+    const statusCode = Number(response.status);
+
     if (parsed !== null) {
-      return { status: response.status, body: parsed };
+      return { status: statusCode, body: parsed };
     }
 
     return {
-      status: response.status,
+      status: statusCode,
       body: {
         message: text || "Unknown API response"
       }
@@ -115,4 +136,10 @@ function safeParseJson(text) {
   } catch {
     return null;
   }
+}
+
+function normalizeValue(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }

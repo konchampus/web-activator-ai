@@ -150,39 +150,41 @@ function startPolling() {
     attempts += 1;
 
     try {
-      const response = await fetch(`/api/activation-status/${encodeURIComponent(code)}`);
+      const response = await fetch(`/api/key/${encodeURIComponent(code)}`);
       const data = await response.json();
-      const activationStatus = normalizeValue(data?.status);
+      const keyStatus = normalizeValue(data?.status);
 
       if (response.ok) {
-        if (activationStatus === "subscription_sent") {
+        if (keyStatus === "activated") {
           setMessage("Subscription activated successfully.", "success");
           clearPolling();
           sessionStorage.removeItem("activation:keyinfo");
           return;
         }
 
-        if (activationStatus === "error") {
+        if (keyStatus !== "available" && keyStatus !== "reserved") {
           setMessage(
-            mapError(readApiMessage(data, "Activation failed with an unknown error.")),
+            `Activation state: ${keyStatus || "unknown"}.`,
             "error"
           );
-          clearPolling();
-          return;
         }
 
         setMessage(
-          `Activation in progress: ${humanizeStatus(activationStatus)} (${attempts}/${MAX_ATTEMPTS})`,
+          `Activation in progress: ${humanizeStatus(keyStatus)} (${attempts}/${MAX_ATTEMPTS})`,
           "info"
         );
       } else {
         setMessage(
-          mapError(readApiMessage(data, "Failed to check activation status.")),
+          mapError(readApiMessage(data, "Failed to check key status.")),
           "error"
         );
+        clearPolling();
+        return;
       }
     } catch {
       setMessage("Temporary network issue while checking status...", "error");
+      clearPolling();
+      return;
     }
 
     if (attempts >= MAX_ATTEMPTS) {
@@ -253,9 +255,9 @@ function readApiMessage(payload, fallback) {
 function humanizeStatus(status) {
   const normalized = normalizeValue(status);
   const dict = {
-    started: "started",
-    account_found: "account found",
-    subscription_sent: "subscription sent"
+    available: "started",
+    reserved: "account found",
+    activated: "subscription sent"
   };
   return dict[normalized] || normalized || "pending";
 }
