@@ -1,0 +1,21 @@
+{
+  "name": "web-activator-ai",
+  "version": "1.0.0",
+  "description": "Simple key activation website for ChatGPT and Claude using Suppy Redeem API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "activation",
+    "chatgpt",
+    "claude",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
