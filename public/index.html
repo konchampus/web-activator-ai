@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Activation - Step 1</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="card">
+        <p class="badge">Step 1 of 2</p>
+        <h1>Enter activation code</h1>
+        <p class="hint">
+          Paste the code provided by the seller and continue to the next step.
+        </p>
+
+        <form id="code-form" class="form">
+          <label for="code">Activation code</label>
+          <input id="code" name="code" type="text" autocomplete="off" required />
+          <button type="submit">Continue</button>
+        </form>
+
+        <p id="message" class="message" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <script src="/js/index.js"></script>
+  </body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Activation - Step 2</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="card">
+        <p id="service-badge" class="badge">Step 2 of 2</p>
+        <h1 id="title">Activate subscription</h1>
+        <p id="hint" class="hint"></p>
+
+        <div id="instructions" class="instructions"></div>
+
+        <form id="activation-form" class="form">
+          <label id="value-label" for="value-input">Session / token</label>
+          <textarea
+            id="value-input"
+            name="value"
+            rows="6"
+            required
+            autocomplete="off"
+          ></textarea>
+          <button type="submit">Activate</button>
+        </form>
+
+        <p id="message" class="message" aria-live="polite"></p>
+        <a class="back-link" href="/">Back to code step</a>
+      </section>
+    </main>
+
+    <script src="/js/activate.js"></script>
+  </body>
+</html>
