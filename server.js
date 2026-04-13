@@ -67,6 +67,23 @@ app.get("/api/activation-status/:code", async (req, res) => {
     return;
   }
 
+  const activationResult = await proxyRequest(
+    `/chatgpt/keys/activation-status/${encodeURIComponent(code)}`,
+    { method: "GET" }
+  );
+
+  // Primary source: activation-status endpoint (can return async errors with message).
+  if (activationResult.status === 200) {
+    res.status(200).json(activationResult.body);
+    return;
+  }
+
+  // Fallback: some keys return 404 on activation-status, use key state instead.
+  if (activationResult.status !== 404) {
+    res.status(activationResult.status).json(activationResult.body);
+    return;
+  }
+
   const keyResult = await proxyRequest(`/chatgpt/keys/${encodeURIComponent(code)}`, {
     method: "GET"
   });

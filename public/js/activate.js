@@ -150,32 +150,35 @@ function startPolling() {
     attempts += 1;
 
     try {
-      const response = await fetch(`/api/key/${encodeURIComponent(code)}`);
+      const response = await fetch(`/api/activation-status/${encodeURIComponent(code)}`);
       const data = await response.json();
-      const keyStatus = normalizeValue(data?.status);
+      const activationStatus = normalizeValue(data?.status);
+      const keyStatus = normalizeValue(data?.key?.status);
 
       if (response.ok) {
-        if (keyStatus === "activated") {
+        if (activationStatus === "subscription_sent" || keyStatus === "activated") {
           setMessage("Subscription activated successfully.", "success");
           clearPolling();
           sessionStorage.removeItem("activation:keyinfo");
           return;
         }
 
-        if (keyStatus !== "available" && keyStatus !== "reserved") {
+        if (activationStatus === "error") {
           setMessage(
-            `Activation state: ${keyStatus || "unknown"}.`,
+            mapError(readApiMessage(data, "Activation failed with an unknown error.")),
             "error"
           );
+          clearPolling();
+          return;
         }
 
         setMessage(
-          `Activation in progress: ${humanizeStatus(keyStatus)} (${attempts}/${MAX_ATTEMPTS})`,
+          `Activation in progress: ${humanizeStatus(activationStatus)} (${attempts}/${MAX_ATTEMPTS})`,
           "info"
         );
       } else {
         setMessage(
-          mapError(readApiMessage(data, "Failed to check key status.")),
+          mapError(readApiMessage(data, "Failed to check activation status.")),
           "error"
         );
         clearPolling();
@@ -221,6 +224,15 @@ function mapError(rawMessage) {
   const message = String(rawMessage || "").trim();
   const normalized = normalizeValue(message);
 
+  if (
+    normalized === "workspace_account" ||
+    normalized.includes("workspace_account") ||
+    normalized.includes("claude for work") ||
+    normalized.includes("workspace account")
+  ) {
+    return "Этот аккаунт Claude не является личным — похоже, вы зашли через рабочий аккаунт Claude for Work или через консоль разработчика Anthropic. Откройте claude.ai, переключитесь на личный аккаунт в меню профиля и скопируйте sessionKey заново.";
+  }
+
   const dict = {
     "session is required": "Session/token is required.",
     "session must be valid json": "Session must be valid JSON for ChatGPT keys.",
@@ -255,9 +267,9 @@ function readApiMessage(payload, fallback) {
 function humanizeStatus(status) {
   const normalized = normalizeValue(status);
   const dict = {
-    available: "started",
-    reserved: "account found",
-    activated: "subscription sent"
+    started: "started",
+    account_found: "account found",
+    subscription_sent: "subscription sent"
   };
   return dict[normalized] || normalized || "pending";
 }
