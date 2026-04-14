@@ -91,7 +91,15 @@ async function init() {
     keyInfo = data;
   }
 
-  if (normalizeValue(keyInfo?.status) !== "available") {
+  const keyStatus = normalizeValue(keyInfo?.status);
+
+  if (keyStatus === "activated") {
+    setMessage("Этот ключ уже активирован.", "success");
+    setLoading(true);
+    return;
+  }
+
+  if (keyStatus !== "available") {
     setMessage(
       `Code status is "${keyInfo.status}". Use a code with "available" status.`,
       "error"
@@ -145,6 +153,7 @@ function applyKeyMeta() {
 function startPolling() {
   clearPolling();
   attempts = 0;
+  let lastProgressStatus = "";
 
   const run = async () => {
     attempts += 1;
@@ -172,8 +181,35 @@ function startPolling() {
           return;
         }
 
+        if (activationStatus === "started" || activationStatus === "account_found") {
+          lastProgressStatus = activationStatus;
+          setMessage(
+            `Activation in progress: ${humanizeStatus(activationStatus)} (${attempts}/${MAX_ATTEMPTS})`,
+            "info"
+          );
+          return;
+        }
+
+        // Fallback source has no detailed async error: diagnose stalled flow.
+        if (normalizeValue(data?.source) === "key_status_fallback") {
+          if (keyStatus === "available" && attempts >= 10) {
+            setMessage(buildStalledFlowMessage(), "error");
+            clearPolling();
+            return;
+          }
+
+          if (keyStatus === "reserved") {
+            lastProgressStatus = "account_found";
+            setMessage(
+              `Activation in progress: ${humanizeStatus("account_found")} (${attempts}/${MAX_ATTEMPTS})`,
+              "info"
+            );
+            return;
+          }
+        }
+
         setMessage(
-          `Activation in progress: ${humanizeStatus(activationStatus)} (${attempts}/${MAX_ATTEMPTS})`,
+          `Activation in progress: ${humanizeStatus(lastProgressStatus || activationStatus || keyStatus)} (${attempts}/${MAX_ATTEMPTS})`,
           "info"
         );
       } else {
@@ -192,10 +228,7 @@ function startPolling() {
 
     if (attempts >= MAX_ATTEMPTS) {
       clearPolling();
-      setMessage(
-        "Activation is taking too long. Please retry status check in a minute.",
-        "error"
-      );
+      setMessage(buildStalledFlowMessage(), "error");
     }
   };
 
@@ -251,6 +284,16 @@ function mapError(rawMessage) {
   if (dict[message]) return dict[message];
 
   return message || "Unknown API error.";
+}
+
+function buildStalledFlowMessage() {
+  const service = normalizeValue(keyInfo?.service);
+
+  if (service === "claude") {
+    return "Не получилось — но это поправимо. Похоже, sessionKey не подходит (часто это рабочий Claude for Work, либо устаревший ключ). Переключитесь на личный аккаунт в claude.ai, заново скопируйте sessionKey и повторите активацию.";
+  }
+
+  return "Не получилось завершить активацию. Обычно причина: устаревшая/невалидная сессия или рабочий (workspace) аккаунт. Заново получите свежую сессию личного аккаунта и повторите.";
 }
 
 function readApiMessage(payload, fallback) {
